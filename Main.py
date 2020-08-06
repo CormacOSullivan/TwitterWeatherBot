@@ -14,6 +14,12 @@ JSON_PATH = "venv/Include/city.list.json"
 OPENWEATHERMAP_API_KEY = "f7fc9317623016c29feedd9488e0bbee"
 KEYWORDS = ["location:"]
 
+
+
+my_path = os.path.abspath(os.path.dirname(__file__))
+abs_file_path = os.path.join(my_path, "Addons", "tweet_id.txt")
+
+print(abs_file_path)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
@@ -73,23 +79,25 @@ def check_user_data(tweet, keywords, city_list):
     return tweet_string
 
 
-def check_mentions(api, keywords, since_id, city_data):
+def check_mentions(api, keywords, last_id, city_data):
     logger.info("Retrieving mentions")
-    new_since_id = since_id
-    for tweet in tweepy.Cursor(api.mentions_timeline, since_id=since_id).items():
-        new_since_id = max(tweet.id, new_since_id)
-        if tweet.in_reply_to_status_id is not None:
-            continue
-        if any(keyword in tweet.text.lower() for keyword in keywords):
-            logger.info(f"Answering to {tweet.user.name}")
-            tweet_string = check_user_data(tweet, keywords, city_data)
-            print(tweet_string)
-            api.update_status(
-                status=tweet_string,
-                in_reply_to_status_id=tweet.id,
-                auto_populate_reply_metadata=True
-            )
-    return new_since_id
+
+    try:
+        for tweet in tweepy.Cursor(api.mentions_timeline, since_id=last_id).items():
+            last_id = max(tweet.id, last_id)
+            if tweet.in_reply_to_status_id is not None:
+                continue
+            if any(keyword in tweet.text.lower() for keyword in keywords):
+                logger.info(f"Answering to {tweet.user.name}")
+                tweet_string = check_user_data(tweet, keywords, city_data)
+                api.update_status(
+                    status=tweet_string,
+                    in_reply_to_status_id=tweet.id,
+                    auto_populate_reply_metadata=True
+                )
+    except Exception as e:
+        print(e)
+    return last_id
 
 
 def create_api():
@@ -121,20 +129,35 @@ def read_json(path):
         return -1
     return data
 
-def save_tweet_id(id):
+def save_tweet_id(id,file_path):
     try:
-        with open("/Addons/tweet_id.txt", ) as f:
-            data = json.load(f)
+        with open(file_path, 'w') as f:
+            f.write(str(id))
+
     except Exception as e:
         logger.error(e)
-        return -1
+        return 0
+    return -1
+
+def read_tweet_id(file_path):
+    try:
+        with open(file_path, 'r') as f:
+            tweet_id = f.read()
+    except Exception as e:
+        logger.error(e)
+        return 1
+    return int(tweet_id)
+
 def main():
     api = create_api()
     city_data = read_json(JSON_PATH)
-    since_id = 1
+    since_id = read_tweet_id(abs_file_path)
+    old_id = since_id
     while True:
         since_id = check_mentions(api, KEYWORDS, since_id, city_data)
-
+        if since_id > old_id:
+            save_tweet_id(since_id, abs_file_path)
+            old_id = since_id
         logger.info("Waiting...")
         time.sleep(60)
 
