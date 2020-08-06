@@ -47,28 +47,43 @@ def parse_api_response(data, units="°C"):
     return infostring
 
 
+def check_user_data(tweet, keywords, city_list):
+    status = tweet.text.lower().split()
+    try:
+        location_index = status.index(keywords[0]) + 1
+        cnt = 0
+        location_name = ""
+        while True:
+            location_name += status[location_index + cnt] + " "
+            if "!" in status[location_index+cnt]:
+                break
+            cnt += 1
+
+        location_name = location_name[:-2].title()
+        if not any(d['name'].title() == location_name for d in city_list):
+            logger.error(f"Invalid location name received: {location_name}")
+            tweet_string = f"Unfortunately there is no available forecast for: {location_name}\nThe current forcast for the Moon is: Clear skies with a 0% chance of precipitation"
+            return tweet_string
+    except Exception as e:
+        print(e)
+
+        return None
+    api_answer = send_api_request(location_name)
+    tweet_string = parse_api_response(api_answer)
+    return tweet_string
+
+
 def check_mentions(api, keywords, since_id, city_data):
     logger.info("Retrieving mentions")
     new_since_id = since_id
-
     for tweet in tweepy.Cursor(api.mentions_timeline, since_id=since_id).items():
         new_since_id = max(tweet.id, new_since_id)
         if tweet.in_reply_to_status_id is not None:
             continue
         if any(keyword in tweet.text.lower() for keyword in keywords):
             logger.info(f"Answering to {tweet.user.name}")
-            status = tweet.text.lower().split()
-            try:
-                location_index = status.index(keywords[0]) + 1
-                # if status[location_index] not in city_data:
-                #     raise Exception
-                api_answer = send_api_request(status[location_index])
-                tweet_string = parse_api_response(api_answer)
-            except Exception as e:
-                print(e)
-                logger.error("Invalid tweet received")
-                tweet_string = f"Unfortunately there is no available forecast for: {status[location_index]}\nThe current forcast for the Moon is: Clear skies with a 0% chance of precipitation"
-
+            tweet_string = check_user_data(tweet, keywords, city_data)
+            print(tweet_string)
             api.update_status(
                 status=tweet_string,
                 in_reply_to_status_id=tweet.id,
@@ -99,20 +114,27 @@ def create_api():
 
 def read_json(path):
     try:
-        with open(path) as f:
+        with open(path, encoding='utf-8') as f:
             data = json.load(f)
     except Exception as e:
         logger.error(e)
         return -1
     return data
 
-
+def save_tweet_id(id):
+    try:
+        with open("/Addons/tweet_id.txt", ) as f:
+            data = json.load(f)
+    except Exception as e:
+        logger.error(e)
+        return -1
 def main():
     api = create_api()
     city_data = read_json(JSON_PATH)
     since_id = 1
     while True:
         since_id = check_mentions(api, KEYWORDS, since_id, city_data)
+
         logger.info("Waiting...")
         time.sleep(60)
 
