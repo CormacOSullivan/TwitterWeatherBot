@@ -11,23 +11,24 @@ import os
 from datetime import datetime
 
 JSON_PATH = "venv/Include/city.list.json"
-OPENWEATHERMAP_API_KEY = "f7fc9317623016c29feedd9488e0bbee"
-KEYWORDS = ["location:"]
 
-
+KEYWORDS = ["location:", "units:"]
+temp_units = {"imperial": "°F", "metric": "°C"}
 
 my_path = os.path.abspath(os.path.dirname(__file__))
 abs_file_path = os.path.join(my_path, "Addons", "tweet_id.txt")
-
-print(abs_file_path)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger()
 
 
 def send_api_request(location, units="metric"):
-    call = f"https://api.openweathermap.org/data/2.5/weather?q={location}&appid={OPENWEATHERMAP_API_KEY}&units={units}"
-    response = requests.get(call)
-    data = json.loads(response.text)
+    try:
+        OPENWEATHERMAP_API_KEY = os.getenv("OPENWEATHERMAP_API_KEY")
+        call = f"https://api.openweathermap.org/data/2.5/weather?q={location}&appid={OPENWEATHERMAP_API_KEY}&units={units}"
+        response = requests.get(call)
+        data = json.loads(response.text)
+    except Exception as e:
+        print(e)
     return data
 
 
@@ -61,10 +62,9 @@ def check_user_data(tweet, keywords, city_list):
         location_name = ""
         while True:
             location_name += status[location_index + cnt] + " "
-            if "!" in status[location_index+cnt]:
+            if "!" in status[location_index + cnt]:
                 break
             cnt += 1
-
         location_name = location_name[:-2].title()
         if not any(d['name'].title() == location_name for d in city_list):
             logger.error(f"Invalid location name received: {location_name}")
@@ -72,16 +72,23 @@ def check_user_data(tweet, keywords, city_list):
             return tweet_string
     except Exception as e:
         print(e)
-
         return None
-    api_answer = send_api_request(location_name)
-    tweet_string = parse_api_response(api_answer)
+    try:
+        units_index = status.index(keywords[1]) + 1
+        units = status[units_index]
+    except Exception as e:
+        print(e)
+    finally:
+        if units != "imperial" and units != "metric":
+            units = "metric"
+
+    api_answer = send_api_request(location_name, units)
+    tweet_string = parse_api_response(api_answer, temp_units[units])
     return tweet_string
 
 
 def check_mentions(api, keywords, last_id, city_data):
     logger.info("Retrieving mentions")
-
     try:
         for tweet in tweepy.Cursor(api.mentions_timeline, since_id=last_id).items():
             last_id = max(tweet.id, last_id)
@@ -129,7 +136,8 @@ def read_json(path):
         return -1
     return data
 
-def save_tweet_id(id,file_path):
+
+def save_tweet_id(id, file_path):
     try:
         with open(file_path, 'w') as f:
             f.write(str(id))
@@ -139,6 +147,7 @@ def save_tweet_id(id,file_path):
         return 0
     return -1
 
+
 def read_tweet_id(file_path):
     try:
         with open(file_path, 'r') as f:
@@ -147,6 +156,7 @@ def read_tweet_id(file_path):
         logger.error(e)
         return 1
     return int(tweet_id)
+
 
 def main():
     api = create_api()
