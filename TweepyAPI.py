@@ -32,15 +32,17 @@ class TweepyAPI:
             location_name = location_name[:-2].title()
             if not any(d['name'].title() == location_name for d in city_list):
                 self.logger.error(f"Invalid location name received: {location_name}")
-                return location_name, ""
-        except Exception as e:
-            print(e)
-            return "", ""
+                return location_name, -1
+        except (IndexError, TypeError) as e:
+            self.logger.error(e)
+            self.logger.error(f"Invalid tweet received: {tweet.text}")
+            return -1, -1
+
         try:
             units_index = status.index(keywords[1]) + 1
             units = status[units_index]
-        except Exception as e:
-            print(e)
+        except IndexError as e:
+            self.logger.error(f"Invalid units value received")
         finally:
             if units != "imperial" and units != "metric":
                 units = "metric"
@@ -59,8 +61,9 @@ class TweepyAPI:
                     return location_name, units, last_id
 
         except Exception as e:
-            print(e)
-        return "", "", last_id
+            self.logger.error("An unexpected error has occurred")
+            self.logger.error(e)
+        return -1, -1, last_id
 
     def reply_to_tweet(self, tweet_string, tweetID):
 
@@ -80,7 +83,7 @@ class TweepyAPI:
             api.verify_credentials()
         except Exception as e:
             self.logger.error("Error creating API", exc_info=True)
-            raise e
+            return -1
 
         self.logger.info("API created")
         return api
@@ -89,16 +92,19 @@ class TweepyAPI:
         try:
             with open(self.tweet_id_path, 'w') as f:
                 f.write(str(tweet_id))
-        except Exception as e:
+        except (IOError, ValueError, EOFError) as e:
             self.logger.error(e)
-            return 0
-        return -1
+        except Exception as f:
+            self.logger.error("An Unexpected error has occurred: ", f)
 
     def read_tweet_id(self):
         try:
             with open(self.tweet_id_path, 'r') as f:
                 tweet_id = f.read()
-        except Exception as e:
+        except (IOError, ValueError, EOFError) as e:
             self.logger.error(e)
-            return 1
+            return -1
+        except Exception as f:
+            self.logger.error("An Unexpected error has occurred: ", f)
+            return -1
         return int(tweet_id)
