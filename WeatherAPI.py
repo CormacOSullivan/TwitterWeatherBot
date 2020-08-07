@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# tweepy-bots/bots/autoreply.py
 
 import json
 import requests
@@ -15,6 +14,14 @@ class WeatherAPI:
         self.logger = logger
 
     def send_api_request(self, location, units="metric"):
+        """
+        Sends a request including the user requested location and units to the openweathermapapi  and then
+        decodes the response
+        :param location: String representing a place name for requesting the current weather
+        :param units: String representing the units required by the user
+        :return: data -> Dictionary containing the weather information received from the api request sent
+                 -1 -> If an error occurred
+        """
         try:
             call = f"https://api.openweathermap.org/data/2.5/weather?q={location}&appid={self.key}&units={units}"
             response = requests.get(call)
@@ -28,6 +35,13 @@ class WeatherAPI:
         return data
 
     def parse_api_response(self, data, units="metric"):
+        """
+        Parses the required data from the openweatherapi response's dictionary and returns a formatted  tweet string
+        :param data: dictionary from openweatherapi call
+        :param units: String that holds the type of units to be used in tweet string
+        :return: info_string -> The string containing the parsed weather results for replying to the request
+                 -1 -> if an error has occurred during the parse
+        """
         try:
             location = data["name"]
             description = data["weather"][0]["description"].title()
@@ -47,6 +61,12 @@ class WeatherAPI:
         return info_string
 
     def read_json(self):
+        """
+        Reads the information found in the city_list.json file for checking the users requested weather location
+        and returns the data after decoding
+        :return: data -> A dictionary contain all the information for locations compatible with openweatherapi
+                 -1 -> If an error occurred
+        """
         try:
             with open(self.json_path, encoding='utf-8') as f:
                 data = json.load(f)

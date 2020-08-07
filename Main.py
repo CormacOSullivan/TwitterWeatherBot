@@ -19,12 +19,12 @@ def main():
     tweet_file_path = os.path.join(current_path, "Addons", "tweet_id.txt")
     json_file_path = os.path.join(current_path, "Addons", "city.list.json")
 
+    #Read in keys and tokens set as enviromental variables
     openweathermap_api_key = os.getenv("OPENWEATHERMAP_API_KEY")
     consumer_key = os.getenv("CONSUMER_KEY")
     consumer_secret = os.getenv("CONSUMER_SECRET")
     access_token = os.getenv("ACCESS_TOKEN")
     access_token_secret = os.getenv("ACCESS_TOKEN_SECRET")
-
 
     tweepyAPI = TweepyAPI.TweepyAPI(consumer_key, consumer_secret, access_token, access_token_secret, logger,
                                     tweet_file_path)
@@ -34,10 +34,11 @@ def main():
     since_id = tweepyAPI.read_tweet_id()
     old_id = since_id
 
-    if any(x == -1 for x in [tweepyAPI.api, city_data, since_id] or any(y is None for y in [openweathermap_api_key, consumer_key, consumer_secret, access_token_secret])):
+    # Check for any incorrect initialisations of required variables
+    if any(x == -1 for x in [tweepyAPI.api, city_data, since_id] or any(
+            y is None for y in [openweathermap_api_key, consumer_key, consumer_secret, access_token_secret])):
         logger.error("An error has occurred during the setup of the system: Please check the logs for more information")
         sys.exit()
-
     while True:
         try:
             location_name, units, since_id = tweepyAPI.check_mentions(KEYWORDS, since_id, city_data)
