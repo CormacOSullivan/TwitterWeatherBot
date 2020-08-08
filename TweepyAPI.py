@@ -52,7 +52,11 @@ class TweepyAPI:
             units_index = status.index(keywords[1]) + 1
             units = status[units_index]
         except IndexError as e:
-            self.logger.error(f"Invalid units value received")
+            self.logger.info("No value or an invalid value of unit was received")
+        except ValueError as g:
+            self.logger.error(g)
+        except Exception as h:
+            print(h, h.__class__.__name__)
         finally:
             if units != "imperial" and units != "metric":
                 units = "metric"

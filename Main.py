@@ -33,7 +33,7 @@ def main():
     city_data = weatherAPI.read_json()
     since_id = tweepyAPI.read_tweet_id()
     old_id = since_id
-
+    tweet_string = -1
     # Check for any incorrect initialisations of required variables
     if any(x == -1 for x in [tweepyAPI.api, city_data, since_id] or any(
             y is None for y in [openweathermap_api_key, consumer_key, consumer_secret, access_token_secret])):
@@ -49,14 +49,10 @@ def main():
                 api_answer = weatherAPI.send_api_request(location_name, units)
                 if api_answer != -1:
                     tweet_string = weatherAPI.parse_api_response(api_answer, units)
-                    if tweet_string != -1:
-                        tweepyAPI.reply_to_tweet(tweet_string, since_id)
-                    else:
-                        logger.error("An unexpected error has occurred with parsing the tweet response")
+                if tweet_string != -1:
+                    tweepyAPI.reply_to_tweet(tweet_string, since_id)
                 else:
-                    logger.error("An unexpected error has occurred with openweatherapi call")
-            else:
-                logger.info("No weather update required")
+                    logger.error("An unexpected error has occurred while sending and parsing the API weather request")
             if since_id > old_id:
                 tweepyAPI.save_tweet_id(since_id)
                 old_id = since_id
